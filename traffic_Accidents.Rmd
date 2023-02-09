@@ -1,0 +1,425 @@
+---
+title: "Road Traffic Accidents Exploratory Data Analysis"
+author: "Group 7"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+### Author
+
+S2155520 || Hossein Golmohammadi
+
+\
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# Introduction
+Driving is the most dangerous thing most Americans do every day. Virtually every American knows someone who’s been injured in a car crash, and each year cars kill about as many people as guns and severely injure millions. Cars killed 42,060 people in 2020, up from 39,107 in 2019, according to a preliminary estimate from the National Safety Council (NSC). An accident dataset was analyzed in order to provide a better understanding of this problem.
+
+# Objectives
+This project we will analyze it mainly using R to determine the main causes of accidents, which is a classification task to achieve road traffic accident classification. In general, the project has two objectives:
+
+Severity of Traffic Accidents Data Analysis
+
+To predict Severity traffic accidents
+
+
+
+```{r load-packages, include=FALSE}
+library(dplyr)
+library(magrittr)
+library(knitr)
+library(ggplot2)
+library(tidyverse)
+library(readr)
+library(corrplot)
+library(naniar)
+library(lubridate)
+library(shiny)
+library(shinydashboard)
+library(rsconnect)
+library(readr)
+library(rvest)
+library(summarytools)
+library(ggmosaic)
+library(devtools)
+library(markdown)
+library(caret)
+library(klaR)
+library(randomForest)
+library(class)
+library(mlbench)
+library(pls)
+```
+
+
+# Data Pre-Proccessing
+## Load the Dataset
+First, the data was uploaded by the read.csv command in order to access the data. This dataset has 12,316 records or (rows) and 15 features (columns). 
+
+\
+```{r}
+    data <- read.csv("traffic_Accident.csv",header =T,na.strings=c(""))
+    head(data,3)
+    dim(data)
+```
+\
+\
+
+## Summary of the Dataset
+Summary is a generic function used to produce result summaries, including the number of records, unique categories, mean, standard deviation, min, max and quartiles of the dataset. 
+
+```{r,fig.width= 8, fig.height=4}
+
+summary(data)
+```
+\
+\
+
+## Identifying the columns with missing values
+The is.na function shows the number of nulls per column. 
+
+```{r,fig.width= 8, fig.height=4}
+
+colSums(is.na(data)==TRUE|data=='')
+
+```
+\
+
+## The Number of Missing Values
+There are a total of 6582 Null values in the dataset. Based on the line graph below, Age_Categories has the highest Null values of more than 1500 records. While Accident_severity has the lowest Null values with only 13 records. 
+
+```{r, fig.width= 8, fig.height=5 }
+gg_miss_var(data)
+
+```   
+
+## The Precentage of missing values
+As the graph below shows, Black color cells indicate percentage of Null values and gray color cells indicate percentage of Non Null values.
+Age_Categories has the highest percentage of Null values with 12.57% and the lowest percentage of Null values is 0.09%. Overall, this dataset has 3.6% of Null values compared to the total size of the dataset. 
+
+
+```{r,fig.width= 8, fig.height=4}
+
+vis_miss(data)
+
+```
+
+## Impute Data 
+The missing data can create problems for analyzing data. Replacing missing data with substituted values is seen as a way to avoid pitfalls involved with listwise deletion of cases that have missing values.
+In the “Accident_Severity” column. The null values were replaced by the mean of the feature. 
+
+```{r,fig.width= 8, fig.height=4}
+data$Accident_severity[is.na(data$Accident_severity)==TRUE] = round(mean(data$Accident_severity, na.rm = TRUE))
+```
+
+The null values in the four other columns including “Age_Categories”, “Educational_level”, “Driving_experience”, “Lanes_or_Medians”, “Educational_level”,  “Driving_experience”, “Lanes_or_Medians” were replaced with the mode of the feature as shown in below respectively.
+\
+
+```{r,fig.width= 8, fig.height=4}
+getmode <- function(a) {
+  uniqage <- unique(a)
+  uniqage[which.max(tabulate(match(a, uniqage)))]
+}
+
+data$Age_Categories[is.na(data$Age_Categories)==TRUE]= getmode(data$Age_Categories)
+print( getmode(data$Age_Categories))
+```
+\
+
+```{r,fig.width= 8, fig.height=4}
+data$Educational_level[is.na(data$Educational_level)==TRUE]= getmode(data$Educational_level)
+print( getmode(data$Educational_level))
+```
+\
+
+```{r,fig.width= 8, fig.height=4}
+data$Driving_experience[is.na(data$Driving_experience)==TRUE] = getmode(data$Driving_experience)
+print(getmode(data$Driving_experience))
+```
+\
+
+```{r,fig.width= 8, fig.height=4}
+data$Lanes_or_Medians[is.na(data$Lanes_or_Medians)==TRUE] = getmode(data$Lanes_or_Medians)
+print(getmode(data$Lanes_or_Medians))
+```
+\
+
+The missing values in other columns including, “Road_surface_type”, “Type_of_collision”, “Cause_of_accident”, “Types_of_Junction”, “Vehicle_movement”, “Vehicle_driver_relation”, “Weather_conditions”, “Sex_of_driver” were replaced by the “Unknown” keyword because of the importance and high sensitivity of the columns’ values in the analysis stage and obviously making a better decision based on them.
+\
+
+```{r,fig.width= 8, fig.height=4}
+data$Road_surface_type[is.na(data$Road_surface_type)==TRUE]= "Unknown"
+
+data$Type_of_collision[is.na(data$Type_of_collision)==TRUE]= "Unknown"
+
+data$Cause_of_accident[is.na(data$Cause_of_accident)==TRUE]= "Unknown"
+
+data$Types_of_Junction [is.na(data$Types_of_Junction )==TRUE]= "Unknown"
+
+data$Vehicle_movement[is.na(data$Vehicle_movement)==TRUE]= "Unknown"
+
+data$Vehicle_driver_relation[is.na(data$Vehicle_driver_relation)==TRUE]= "Unknown"
+
+data$Weather_conditions[is.na(data$Weather_conditions)==TRUE]= "Unknown"
+
+data$Sex_of_driver[is.na(data$Sex_of_driver)==TRUE]= "Unknown"
+```
+\
+
+After imputation the dataset, the vis_miss function was run to recheck the null data situation. Fortunately, There was no missing data anymore. 
+
+
+```{r,fig.width= 8, fig.height=4}
+vis_miss(data)
+
+```
+\
+
+
+```{r,fig.width= 8, fig.height=4}
+
+colSums(is.na(data)==TRUE|data=='')
+
+```
+\
+\
+
+# Data Analysis 
+## Accident Severity and Type of Collision 
+The diagram below shows the number of accidents in every level of severity and every level categorized by the number of collision types. The highest level of severity accounts for most of the accidents with vehicle collisions.
+\
+
+```{r,fig.width= 8, fig.height=4}
+ 
+ ggplot(data) +
+      geom_bar(aes(x = Accident_severity, fill = Type_of_collision)) +
+      xlab("Severity of Accidents") + ylab("Number of Accidents")
+
+```
+\
+
+## Causes of Accident
+There are plenty of causes for an accident to take place. The highest cause for an accident is “No Distance” with a total of 2,250 accidents. This indicated that accidents happened due to no safe distance between vehicles when on the road.
+\
+
+```{r,fig.width=8, fig.height=8}
+ 
+p_causes <- ggplot(data) +
+      geom_bar(aes(x = Cause_of_accident), position = "dodge", width = 0.2) +
+      xlab("Causes of Accidents") + ylab("Number of Accidents")
+p_causes + coord_flip()
+```
+
+## Accident Severity and Gender
+In both female and male gender, the majority of accident occur in the highest level of severity.
+\
+
+```{r,fig.width= 8, fig.height=4}
+ 
+ ggplot(data, aes(x=Accident_severity, fill=Sex_of_driver )) + 
+      geom_bar(position = "dodge") + 
+      labs(x="Severity of Accidents",y="Number of Accidents")
+
+```
+\
+
+## Accident Severity and Age
+Accidents with the most severity (Class 2) have different age groups of drivers. The highest number of accidents in level 2 belongs to drivers aged between 18 to 30 years old. This group of age has more than 3500 number of accidents recorded. The second highest belongs to drivers aged between 31 to 50 years old with 3500 number of accidents recorded.
+\
+
+```{r,fig.width= 8, fig.height=4}
+ 
+ ggplot(data, aes(x=Accident_severity, fill=Age_Categories )) + 
+      geom_bar(position = "dodge") + 
+      labs(x="Severity of Accidents",y="Number of Accidents")
+
+```
+
+## Accident Severity and Experience
+Driving experiences of each driver on level 2 has been categorized based on the total years driving experiences. Drivers with 5 to 10 years of driving experience have the highest number of accidents in Class 2. This category counted more than 2,500 accidents. While drivers with 2 to 5 years of driving experience in Class 2 have a record of slightly more than 2,000 accidents.
+\
+
+```{r,fig.width= 8, fig.height=4}
+ 
+ ggplot(data, aes(x=Accident_severity, fill=Driving_experience )) + 
+      geom_bar(position = "dodge") + 
+      labs(x="Severity of Accidents",y="Number of Accidents")
+
+```
+
+## Accident Severity and Junction 
+Accidents with the most severity in Class 2 occurred at various junction on the road. Based on the stacked bar graph, accidents mostly happened at the “Y” shape junction as well as at location with No junction. Both locations of the road have equal total of accidents recorded with about 2500 of accidents.
+\
+
+```{r,fig.width= 8, fig.height=4}
+ 
+ ggplot(data) +
+      geom_bar(aes(x = Accident_severity, fill = Types_of_Junction)) +
+      xlab("Severity of Accidents") + ylab("Number of Accidents")
+
+```
+
+## Weather Conditions
+As the diagram shows, the vast majority of accidents occur in normal weather. It seems weather conditions do not play an important role in the occurrence of accidents.
+\
+
+```{r,fig.width= 8, fig.height=4}
+ 
+p_weather <- ggplot(data) +
+      geom_bar(aes(x =Weather_conditions , fill = Weather_conditions), width = 0.5) +
+      xlab("Weather Condistions") + ylab("Number of Accidents")
+p_weather + coord_flip()
+```
+
+## Type of Roads
+The number of accidents that happen on Asphalt roads are dramatically higher than other types of road. It seems the type of roads  do not play an important role in the occurrence of accidents.
+\
+
+```{r,fig.width= 8, fig.height=4}
+ 
+p_road <- ggplot(data) +
+      geom_bar(aes(x = Road_surface_type, fill=Road_surface_type), position = "dodge", width = 0.5) +
+      xlab("Type of Roads Surface") + ylab("Number of Accidents")
+p_road + coord_flip()
+```
+
+## Accident Severity and Light Conditions
+The majority of the accidents took place during the daylight in each of the accident severity classes. However, conditions with total darkness and no lighting are also considerable. 
+\
+
+```{r,fig.width= 8, fig.height=6}
+ 
+ ggplot(data) + geom_mosaic(aes(x = product(Light_conditions, Accident_severity), fill = Light_conditions)) + 
+      xlab("Severity of Accidents") + ylab("Light Conditions")
+
+```
+\
+\
+\
+
+# Machine Learning
+Machine learning is about learning to predict something or extracting knowledge from data. ML algorithms build a model based on sample data or known as training data and based upon the training data the algorithm can predict something on new data. 
+The central goal of this section is to design a model that makes proper accident severity classifications for new accidents.
+In the first step, it was essential to change the “Accident_severity” type to factor in order the ML algorithm can be run. 
+\
+\
+\
+
+```{r,fig.width= 8, fig.height=4}
+
+data$Accident_severity <- as.factor(data$Accident_severity)
+str(data)
+```
+## Random Forest
+The first ML model is Random Forest. It builds and combines multiple decision trees to get more accurate predictions. It’s a non-linear classification algorithm. They are called random because they choose predictors randomly at a time of training. They are called forest because they take the output of multiple trees to make a decision. Random forest outperforms decision trees as a large number of uncorrelated trees(models) operating as a committee will always outperform the individual constituent models. In the below the function is created to run the Random Forest.
+\
+
+
+```{r,fig.width= 8, fig.height=4}
+
+RF<-function(s, df, col) {
+  trainIndex<-createDataPartition(col, p=s, list=F)
+  data_train<-df[trainIndex,]
+  data_test<-df[-trainIndex,]           
+  model <- randomForest(Accident_severity~., data=data_train)
+  
+  # make predictions
+  x_test <- data_test[,1:14]
+  y_test <- data_test[,15]
+  predictions <- predict(model, x_test)
+  cm<-confusionMatrix(predictions, y_test)
+  return(cm)
+}
+```
+
+
+## Train & Test Split 
+The data splitted to 70% and 30% for train and test respectively and then the results are shown. The model has 84% Accuracy.
+\
+
+```{r,fig.width= 8, fig.height=4}
+
+
+split<-0.70  # 70%/30% train/test
+result4<-RF(split, data, data$Accident_severity)
+
+result4
+```
+## k-Fold
+Cross-validation is a resampling procedure used to evaluate machine learning models on a limited data sample. The procedure has a single parameter called k that refers to the number of groups that a given data sample is to be split into. The data split it into 5 groups (k = 5). mtry is the number of variables to randomly sample as candidates at each split. As it shows the most accurate value for mtry was 2 with an accuracy of 84%.
+\
+
+
+```{r,fig.width= 8, fig.height=4}
+
+train_control <- trainControl(method="cv", number=5)
+modelRF <- train(Accident_severity~., data=data, trControl=train_control, method="rf")
+modelRF
+
+```
+
+## KNN
+k-Nearest Neighbor(k-NN) is an instance-based supervised learning algorithm which classifies a new instance by comparing it with already stored instances in the memory that have already been seen in training. In the below the function is created to run the Random Forest.
+\
+
+
+```{r,fig.width= 8, fig.height=4}
+
+KNN<-function(s, df, col) {
+  trainIndex<-createDataPartition(col, p=s, list=F)
+  data_train<-df[trainIndex,]
+  data_test<-df[-trainIndex,]           
+  model <- train(Accident_severity~., data=data_train, method = "knn")
+  
+  # make predictions
+  x_test <- data_test[,1:14]
+  y_test <- data_test[,15]
+  predictions <- predict(model, x_test)
+  cm<-confusionMatrix(predictions, y_test)
+  return(list(model, cm))
+}
+```
+
+## Train & Test Split
+The data splitted to 70% and 30% for train and test respectively and then the results are shown. The model has 83.68% Accuracy when the K = 9. 
+\
+
+```{r,fig.width= 8, fig.height=4}
+
+
+split<-0.70  # 70%/30% train/test
+result6<-KNN(split, data, data$Accident_severity)
+
+
+result6
+```
+
+## K-Fold
+The data split it into 5 groups (k = 5). As it shows the most accurate value for mtry was 9 with an accuracy of 84.5%.
+\
+
+
+```{r,fig.width= 8, fig.height=4}
+
+train_control <- trainControl(method="cv", number=5)
+modelknn <- train(Accident_severity~., data=data, trControl=train_control, method="knn")
+modelknn
+
+```
+
+\
+
+# Conclusion
+As exploratory data analysis shows, the main factors that cause accidents include no distancing and sudden change lanes to the right and left. Lack of light also plays a vital role in accidents. Weather conditions and type of roads have a low influence on accident occurrence. Therefore, human error is the leading cause of accidents. By comparing the prediction results of random forest and the KNN algorithm, it is concluded that, in this case, the KNN algorithm with k-fold = 5 has higher accuracy for traffic accident severity prediction.
